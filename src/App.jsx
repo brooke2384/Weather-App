@@ -1,19 +1,69 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 import search from './assets/icons/search.svg'
 import { useStateContext } from './Context'
 import { BackgroundLayout, WeatherCard, MiniCard } from './Components'
+import { Line } from 'react-chartjs-2'
 
 function App() {
 
   const [input, setInput] = useState('')
   const { weather, thisLocation, values, place, setPlace } = useStateContext()
+  const [chartData, setChartData] = useState({
+    labels: [],
+    datasets: [
+      {
+        label: 'Temperature (°C)',
+        data: [],
+        fill: false,
+        borderColor: 'rgb(75, 192, 192)',
+        tension: 0.1,
+      },
+    ],
+  });
+  const VITE_API_KEY = 'f14c8a4fb0msha98a5748b416969p16fa48jsn49970727e1f0';
+
   // console.log(weather)
 
   const submitCity = () => {
     setPlace(input)
     setInput('')
-  }
+  };
+
+  useEffect(() => {
+    const fetchWeatherData = async () => {
+      try {
+        const response = await axios.get(`https://weatherapi-com.p.rapidapi.com/forecast.json?q=${place}`, {
+          headers: {
+            'x-rapidapi-host': 'weatherapi-com.p.rapidapi.com',
+            'x-rapidapi-key': VITE_API_KEY
+          }
+        });
+        // Example: Extracting temperature data from the API response
+        const labels = response.data.forecast.forecastday.map(day => day.date);
+        const temperatures = response.data.forecast.forecastday.map(day => day.day.avgtemp_c);
+
+        // Update chart data state
+        setChartData({
+          ...chartData,
+          labels: labels,
+          datasets: [
+            {
+              ...chartData.datasets[0],
+              data: temperatures,
+            },
+          ],
+        });
+      } catch (error) {
+        console.error('Error fetching weather data:', error);
+        // Handle error state or display error message
+      }
+    };
+
+    if (place) {
+      fetchWeatherData();
+    }
+  }, [place]);
 
   return (
     <div className='w-full h-screen text-zinc-900 font-bold px-8'>
@@ -56,7 +106,16 @@ function App() {
           }
         </div>
       </main>
+
+       {/* Render WeatherChart only when there is data */}
+       {chartData.length > 0 && (
+        <div className='mt-8'>
+          <h2 className='text-2xl font-bold mb-4'>Temperature Trend for {place}</h2>
+          <WeatherChart labels={chartLabels} data={chartData} />
+        </div>
+      )}
     </div>
+    
   )
 }
 
